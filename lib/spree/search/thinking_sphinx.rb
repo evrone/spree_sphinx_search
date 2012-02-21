@@ -16,6 +16,16 @@ module Spree::Search
         taxon_ids = taxon.self_and_descendants.map(&:id)
         with_opts.merge!(:taxon_ids => taxon_ids)
       end
+
+      # filters = {:sex => [174], :catalog => [144, 145]}
+      if filters.present?
+        filters.each do |root_taxon_permalink, taxon_ids|
+          if taxon_ids.any?(&:present?)
+            with_opts.merge!("#{root_taxon_permalink}_taxon_ids" => taxon_ids)
+          end
+        end
+      end
+
       search_options.merge!(:with => with_opts)
       facets = Spree::Product.facets(query, search_options)
       products = facets.for
@@ -33,6 +43,7 @@ module Spree::Search
       @properties[:facets_hash] = params[:facets] || {}
       @properties[:taxon] = params[:taxon].blank? ? nil : Spree::Taxon.find(params[:taxon])
       @properties[:keywords] = params[:keywords]
+      @properties[:filters] = params[:filters]
       per_page = params[:per_page].to_i
       @properties[:per_page] = per_page > 0 ? per_page : Spree::Config[:products_per_page]
       @properties[:page] = (params[:page].to_i <= 0) ? 1 : params[:page].to_i

@@ -22,8 +22,13 @@ Spree::Product.class_eval do
     indexes :description
     indexes :meta_description
     indexes :meta_keywords
+
     indexes taxons.name, :as => :taxon, :facet => true
     has taxons(:id), :as => :taxon_ids
+    Spree::Taxon.roots.pluck(:permalink).each do |root_taxon_permalink|
+      has taxons(:id), :as => "#{root_taxon_permalink}_taxon_ids"
+    end
+
     group_by :deleted_at
     group_by :available_on
     has is_active_sql, :as => :is_active, :type => :boolean
