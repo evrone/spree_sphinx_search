@@ -70,6 +70,18 @@ module Spree::Search
 
 private
 
+    # Copied because we want to use sphinx even if keywords is blank
+    # This method is equal to one from spree without unless keywords.blank? in get_products_conditions_for
+    def get_base_scope
+      base_scope = @cached_product_group ? @cached_product_group.products.active : Spree::Product.active
+      base_scope = base_scope.in_taxon(taxon) unless taxon.blank?
+      base_scope = get_products_conditions_for(base_scope, keywords)
+
+      base_scope = base_scope.on_hand unless Spree::Config[:show_zero_stock_products]
+      base_scope = base_scope.group_by_products_id if @product_group.product_scopes.size > 1
+      base_scope
+    end
+
     # method should return new scope based on base_scope
     def parse_facets_hash(facets_hash = {})
       facets = []
