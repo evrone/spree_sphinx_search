@@ -26,6 +26,10 @@ module Spree::Search
         end
       end
 
+      if price_from.present? && price_to.present?
+        with_opts.merge!(:price => price_from.to_f..price_to.to_f)
+      end
+
       search_options.merge!(:with => with_opts)
       facets = Spree::Product.facets(query, search_options)
       products = facets.for
@@ -44,6 +48,8 @@ module Spree::Search
       @properties[:taxon] = params[:taxon].blank? ? nil : Spree::Taxon.find(params[:taxon])
       @properties[:keywords] = params[:keywords]
       @properties[:filters] = params[:filters]
+      @properties[:price_from] = params[:price_from]
+      @properties[:price_to] = params[:price_to]
       per_page = params[:per_page].to_i
       @properties[:per_page] = per_page > 0 ? per_page : Spree::Config[:products_per_page]
       @properties[:page] = (params[:page].to_i <= 0) ? 1 : params[:page].to_i

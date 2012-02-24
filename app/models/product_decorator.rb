@@ -29,7 +29,9 @@ Spree::Product.class_eval do
       has taxons(:id), :as => "#{root_taxon_permalink}_taxon_ids"
     end
 
-    group_by :deleted_at
+    has master(:price), :as => :price
+
+    group_by "spree_products.deleted_at"
     group_by :available_on
     has is_active_sql, :as => :is_active, :type => :boolean
     source.model.indexed_options.each do |opt|
