@@ -48,8 +48,14 @@ module Spree::Search
       @properties[:taxon] = params[:taxon].blank? ? nil : Spree::Taxon.find(params[:taxon])
       @properties[:keywords] = params[:keywords]
       @properties[:filters] = params[:filters]
-      @properties[:price_from] = params[:price_from]
-      @properties[:price_to] = params[:price_to]
+
+      @properties[:price_from] = params[:price_from].presence.try(:to_f)
+      @properties[:price_to] = params[:price_to].presence.try(:to_f)
+      if params[:price_delta].present?
+        @properties[:price_from] *= (1 - params[:price_delta].to_f) if @properties[:price_from].present?
+        @properties[:price_to] *= (1 + params[:price_delta].to_f) if @properties[:price_to].present?
+      end
+
       per_page = params[:per_page].to_i
       @properties[:per_page] = per_page > 0 ? per_page : Spree::Config[:products_per_page]
       @properties[:page] = (params[:page].to_i <= 0) ? 1 : params[:page].to_i
