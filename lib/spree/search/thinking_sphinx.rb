@@ -35,7 +35,10 @@ module Spree::Search
       products = facets.for
 
       @properties[:products] = products
-      @properties[:facets] = parse_facets_hash(facets)
+
+      corrected_facets = correct_facets(facets, query, search_options)
+      @properties[:facets] = parse_facets_hash(corrected_facets)
+
       if products.suggestion? && products.suggestion.present?
         @properties[:suggest] = products.suggestion
       end
@@ -86,6 +89,32 @@ private
       base_scope = base_scope.on_hand unless Spree::Config[:show_zero_stock_products]
       base_scope = base_scope.group_by_products_id if @product_group.product_scopes.size > 1
       base_scope
+    end
+
+    # corrects facets for taxons
+    def correct_facets(facets, query, search_options)
+      return facets unless filters.present?
+
+      result = facets.dup
+
+      filters.each do |root_taxon_permalink, taxon_ids|
+        if taxon_ids.any?(&:present?)
+          new_search_options = search_options.dup
+          new_search_options[:with].delete("#{root_taxon_permalink}_taxon_ids")
+          new_facets = Spree::Product.facets(query, new_search_options)
+          root_taxon = Spree::Taxon.find_by_permalink(root_taxon_permalink)
+          correct_facets_by_root_taxon(root_taxon, result[:taxon], new_facets[:taxon])
+        end
+      end
+
+      result
+    end
+
+    def correct_facets_by_root_taxon(root_taxon, old_taxon_hash, new_taxon_hash)
+      taxon_names = root_taxon.descendants.pluck(:name)
+      taxon_names.each do |taxon_name|
+        old_taxon_hash[taxon_name] = new_taxon_hash[taxon_name] if new_taxon_hash[taxon_name].present?
+      end
     end
 
     # method should return new scope based on base_scope
