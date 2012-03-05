@@ -95,11 +95,12 @@ private
     def correct_facets(facets, query, search_options)
       return facets unless filters.present?
 
-      result = facets.dup
+      result = facets.clone
 
       filters.each do |root_taxon_permalink, taxon_ids|
         if taxon_ids.any?(&:present?)
-          new_search_options = search_options.dup
+          new_search_options = search_options.clone
+          new_search_options[:with] = search_options[:with].clone
           new_search_options[:with].delete("#{root_taxon_permalink}_taxon_ids")
           new_facets = Spree::Product.facets(query, new_search_options)
           root_taxon = Spree::Taxon.find_by_permalink(root_taxon_permalink)
