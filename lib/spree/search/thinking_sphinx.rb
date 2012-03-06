@@ -31,6 +31,8 @@ module Spree::Search
       end
 
       search_options.merge!(:with => with_opts)
+      search_options.deep_merge!(custom_options)
+
       facets = Spree::Product.facets(query, search_options)
       products = facets.for
 
@@ -75,6 +77,10 @@ module Spree::Search
         @product_group = Spree::ProductGroup.new
       end
       @product_group = @product_group.from_search(params[:search]) if params[:search]
+    end
+
+    def custom_options
+      {}
     end
 
 private
