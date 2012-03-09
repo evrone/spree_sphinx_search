@@ -31,6 +31,8 @@ module Spree::Search
       end
 
       search_options.merge!(:with => with_opts)
+      search_options.deep_merge!(custom_options)
+
       facets = Spree::Product.facets(query, search_options)
       products = facets.for
 
@@ -54,6 +56,12 @@ module Spree::Search
 
       @properties[:price_from] = params[:price_from].presence.try(:to_f)
       @properties[:price_to] = params[:price_to].presence.try(:to_f)
+
+      Spree::Product.indexed_properties.each do |prop|
+        indexed_name = [prop[:name], '_property'].join.to_sym
+        @properties[indexed_name] = params[indexed_name]
+      end
+
       if params[:price_delta].present?
         @properties[:price_from] *= (1 - params[:price_delta].to_f) if @properties[:price_from].present?
         @properties[:price_to] *= (1 + params[:price_delta].to_f) if @properties[:price_to].present?
@@ -75,6 +83,10 @@ module Spree::Search
         @product_group = Spree::ProductGroup.new
       end
       @product_group = @product_group.from_search(params[:search]) if params[:search]
+    end
+
+    def custom_options
+      {}
     end
 
 private
