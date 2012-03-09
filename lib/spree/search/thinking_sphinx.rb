@@ -45,7 +45,7 @@ module Spree::Search
         @properties[:suggest] = products.suggestion
       end
 
-      Spree::Product.where("id IN (?)", products.map(&:id))
+      Spree::Product.where(:id => products.map(&:id))
     end
 
     def prepare(params)
