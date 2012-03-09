@@ -7,11 +7,11 @@ Spree::Product.class_eval do
     option_sql = lambda do |option_name|
       sql = <<-eos
         SELECT DISTINCT p.id, ov.id
-        FROM option_values AS ov
-        LEFT JOIN option_types AS ot ON (ov.option_type_id = ot.id)
-        LEFT JOIN option_values_variants AS ovv ON (ovv.option_value_id = ov.id)
-        LEFT JOIN variants AS v ON (ovv.variant_id = v.id)
-        LEFT JOIN products AS p ON (v.product_id = p.id)
+        FROM spree_option_values AS ov
+        LEFT JOIN spree_option_types AS ot ON (ov.option_type_id = ot.id)
+        LEFT JOIN spree_option_values_variants AS ovv ON (ovv.option_value_id = ov.id)
+        LEFT JOIN spree_variants AS v ON (ovv.variant_id = v.id)
+        LEFT JOIN spree_products AS p ON (v.product_id = p.id)
         WHERE (ot.name = '#{option_name}' AND p.id>=$start AND p.id<=$end);
         #{source.to_sql_query_range}
       eos
