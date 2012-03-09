@@ -33,7 +33,7 @@ Spree::Product.class_eval do
       sql.gsub("\n", ' ').gsub('  ', '')
     end
 
-    indexes :name
+    indexes :name, :sortable => true
     indexes :description
     indexes :meta_description
     indexes :meta_keywords
