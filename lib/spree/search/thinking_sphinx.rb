@@ -15,13 +15,16 @@ module Spree::Search
       if taxon
         taxon_ids = taxon.self_and_descendants.map(&:id)
         with_opts.merge!(:taxon_ids => taxon_ids)
+      else
+        taxon_ids = Spree::Taxon.pluck(:id)
+        with_opts.merge!(:taxon_ids => taxon_ids)
       end
 
-      # filters = {:sex => [174], :catalog => [144, 145]}
+      # filters = {'183' => [174], '2' => [144, 145]}
       if filters.present?
-        filters.each do |root_taxon_permalink, taxon_ids|
+        filters.each do |filter_taxon_id, taxon_ids|
           if taxon_ids.any?(&:present?)
-            with_opts.merge!("#{root_taxon_permalink}_taxon_ids" => taxon_ids)
+            with_opts.merge!("#{filter_taxon_id}_taxon_ids" => taxon_ids)
           end
         end
       end
@@ -109,13 +112,13 @@ private
 
       result = facets.clone
 
-      filters.each do |root_taxon_permalink, taxon_ids|
+      filters.each do |filter_taxon_id, taxon_ids|
         if taxon_ids.any?(&:present?)
           new_search_options = search_options.clone
           new_search_options[:with] = search_options[:with].clone
-          new_search_options[:with].delete("#{root_taxon_permalink}_taxon_ids")
+          new_search_options[:with].delete("#{filter_taxon_id}_taxon_ids")
           new_facets = Spree::Product.facets(query, new_search_options)
-          root_taxon = Spree::Taxon.find_by_permalink(root_taxon_permalink)
+          root_taxon = Spree::Taxon.find(filter_taxon_id)
           correct_facets_by_root_taxon(root_taxon, result[:taxon], new_facets[:taxon])
         end
       end
@@ -124,7 +127,7 @@ private
     end
 
     def correct_facets_by_root_taxon(root_taxon, old_taxon_hash, new_taxon_hash)
-      taxon_names = root_taxon.descendants.pluck(:name)
+      taxon_names = root_taxon.filter_options.map(&:name)
       taxon_names.each do |taxon_name|
         old_taxon_hash[taxon_name] = new_taxon_hash[taxon_name] if new_taxon_hash[taxon_name].present?
       end

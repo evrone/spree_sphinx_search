@@ -40,8 +40,8 @@ Spree::Product.class_eval do
 
     indexes taxons.name, :as => :taxon, :facet => true
     has taxons(:id), :as => :taxon_ids
-    Spree::Taxon.roots.pluck(:permalink).each do |root_taxon_permalink|
-      has taxons(:id), :as => "#{root_taxon_permalink}_taxon_ids"
+    Spree::Taxon.filters.pluck(:id).each do |filter_id|
+      has taxons(:id), :as => "#{filter_id}_taxon_ids"
     end
 
     has master(:price), :as => :price
