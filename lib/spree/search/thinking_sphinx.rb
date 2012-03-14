@@ -20,7 +20,7 @@ module Spree::Search
       # filters = {:sex => [174], :catalog => [144, 145]}
       if filters.present?
         filters.each do |root_taxon_permalink, taxon_ids|
-          if taxon_ids.any?(&:present?)
+          if taxon_ids.any?(&:present?) && Spree::Taxon.find_by_permalink(root_taxon_permalink)
             with_opts.merge!("#{root_taxon_permalink}_taxon_ids" => taxon_ids)
           end
         end
@@ -116,7 +116,7 @@ private
           new_search_options[:with].delete("#{root_taxon_permalink}_taxon_ids")
           new_facets = Spree::Product.facets(query, new_search_options)
           root_taxon = Spree::Taxon.find_by_permalink(root_taxon_permalink)
-          correct_facets_by_root_taxon(root_taxon, result[:taxon], new_facets[:taxon])
+          correct_facets_by_root_taxon(root_taxon, result[:taxon], new_facets[:taxon]) if root_taxon
         end
       end
 
