@@ -1,7 +1,10 @@
 Spree::Product.class_eval do
-  class_attribute :indexed_options, :indexed_properties
+  class_attribute :indexed_options, :indexed_properties, :indexed_attributes
   self.indexed_options = []
+  # [{:name => :age_from, :type => :integer}]
   self.indexed_properties = []
+  # [{:field => :created_at, :options => {:as => :recency}}]
+  self.indexed_attributes = []
 
   def self.sphinx_search_options &rules
     Spree::Search::ThinkingSphinx.send :define_method, :custom_options, rules
@@ -49,6 +52,10 @@ Spree::Product.class_eval do
     group_by "spree_products.deleted_at"
     group_by :available_on
     has is_active_sql, :as => :is_active, :type => :boolean
+
+    source.model.indexed_attributes.each do |attr|
+      has attr[:field], attr[:options]
+    end
     source.model.indexed_properties.each do |prop|
       has property_sql.call(prop[:name].to_s), :as => :"#{prop[:name]}_property", :type => prop[:type]
     end
