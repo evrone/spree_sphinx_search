@@ -22,8 +22,9 @@ module Spree::Search
 
       # filters = {'183' => [174], '2' => [144, 145]}
       if filters.present?
+        selected_taxon_ids = filters.values.flatten.map &:to_i
         filters.each do |filter_taxon_id, taxon_ids|
-          if taxon_ids.any?(&:present?) && Spree::Taxon.find_by_id(filter_taxon_id)
+          if taxon_ids.any?(&:present?) && filter_taxon_available?(filter_taxon_id, selected_taxon_ids)
             with_opts.merge!("#{filter_taxon_id}_taxon_ids" => taxon_ids)
           end
         end
@@ -104,6 +105,14 @@ private
       base_scope = base_scope.on_hand unless Spree::Config[:show_zero_stock_products]
       base_scope = base_scope.group_by_products_id if @product_group.product_scopes.size > 1
       base_scope
+    end
+
+    def filter_taxon_available?(filter_taxon_id, selected_taxon_ids)
+      filter_taxon = Spree::Taxon.find_by_id(filter_taxon_id) || return
+      return true if filter_taxon.root?
+
+      nearest_filter_ancestor = filter_taxon.ancestors.filters.last
+      nearest_filter_ancestor.id.in?(selected_taxon_ids) || nearest_filter_ancestor == taxon
     end
 
     # corrects facets for taxons
