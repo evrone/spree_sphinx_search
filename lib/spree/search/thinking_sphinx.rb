@@ -109,7 +109,7 @@ private
 
     def filter_taxon_available?(filter_taxon_id, selected_taxon_ids)
       filter_taxon = Spree::Taxon.find_by_id(filter_taxon_id) || return
-      return true if filter_taxon.root?
+      return true if filter_taxon.root? || filter_taxon.id.in?(selected_taxon_ids)
 
       nearest_filter_ancestor = filter_taxon.ancestors.filters.last
       nearest_filter_ancestor.id.in?(selected_taxon_ids) || nearest_filter_ancestor == taxon
