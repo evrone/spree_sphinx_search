@@ -45,8 +45,10 @@ Spree::Product.class_eval do
 
     indexes taxons.name, :as => :taxon, :facet => true
     has taxons(:id), :as => :taxon_ids
-    Spree::Taxon.filters.pluck(:id).each do |filter_id|
-      has taxons(:id), :as => "#{filter_id}_taxon_ids"
+    Spree::Taxon.find_each do |taxon|
+      if taxon.children.size > 0
+        has taxons(:id), :as => "#{taxon.id}_taxon_ids"
+      end
     end
 
     has master(:price), :as => :price
