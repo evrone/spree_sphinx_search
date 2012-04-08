@@ -38,17 +38,27 @@ Spree::Product.class_eval do
       sql.gsub("\n", ' ').gsub('  ', '')
     end
 
+    # Query for whole product taxons branches from real product taxon to root
+    taxons_sql = lambda do |attribute|
+      sql = <<-eos
+        (SELECT GROUP_CONCAT(ancestors.#{attribute})
+          FROM spree_taxons AS taxons
+          LEFT JOIN spree_products_taxons AS spt ON taxons.id = spt.taxon_id
+          LEFT JOIN spree_taxons AS ancestors ON ancestors.lft <= taxons.lft AND ancestors.rgt >= taxons.rgt
+          WHERE spt.product_id = spree_products.id)
+      eos
+      sql.gsub("\n", ' ').gsub('  ', '')
+    end
+
     indexes :name, :sortable => :insensitive
     indexes :description
     indexes :meta_description
     indexes :meta_keywords
+    indexes taxons_sql.call('name'), :as => :taxon_names
 
-    indexes taxons.name, :as => :taxon, :facet => true
-    has taxons(:id), :as => :taxon_ids
-    Spree::Taxon.find_each do |taxon|
-      if taxon.children.size > 0
-        has taxons(:id), :as => "#{taxon.id}_taxon_ids"
-      end
+    facet taxons_sql.call('id'), :as => :taxon, :type => :multi, :source => :field, :all_ints => true
+    Spree::Taxon.filters.each do |taxon|
+      has taxons_sql.call('id'), :as => "#{taxon.id}_taxon_ids", :type => :multi
     end
 
     has master(:price), :as => :price

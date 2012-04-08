@@ -12,21 +12,17 @@ module Spree::Search
         search_options.merge!(:conditions => facets_hash)
       end
       with_opts = {:is_active => 1}
-      if taxon
-        taxon_ids = taxon.self_and_descendants.map(&:id)
-        with_opts.merge!(:taxon_ids => taxon_ids)
-      else
-        taxon_ids = Spree::Taxon.pluck(:id)
-        with_opts.merge!(:taxon_ids => taxon_ids)
-      end
 
-      # filters = {'183' => [174], '2' => [144, 145]}
-      if filters.present?
-        selected_taxon_ids = filters.values.flatten.map &:to_i
-        filters.each do |filter_taxon_id, taxon_ids|
-          if taxon_ids.any?(&:present?) && filter_taxon_available?(filter_taxon_id, selected_taxon_ids)
-            with_opts.merge!("#{filter_taxon_id}_taxon_ids" => taxon_ids)
-          end
+      root_ids = Spree::Taxon.roots.pluck(:id)
+      taxon_ids = taxon ? taxon.id : Spree::Taxon.roots.pluck(:id)
+      with_opts.merge!(:taxon => taxon_ids)
+
+      # filters = {'183' => ['174'], '2' => ['144', '145']}
+      @parsed_filters = {}
+      Spree::Taxon.filters.each do |filter|
+        if filters && filters[filter.id.to_s].present?
+          @parsed_filters[filter.id] = parse_filters(filters[filter.id.to_s])
+          with_opts.merge!("#{filter.id}_taxon_ids" => @parsed_filters[filter.id]) if @parsed_filters[filter.id].present?
         end
       end
 
@@ -107,21 +103,26 @@ private
       base_scope
     end
 
-    def filter_taxon_available?(filter_taxon_id, selected_taxon_ids)
-      filter_taxon = Spree::Taxon.find_by_id(filter_taxon_id) || return
-      return true if filter_taxon.root? || filter_taxon.id.in?(selected_taxon_ids)
-
-      nearest_filter_ancestor = filter_taxon.ancestors.filters.last
-      nearest_filter_ancestor.id.in?(selected_taxon_ids) || nearest_filter_ancestor == taxon
+    # 'Flattens' filters hash of nested taxons
+    # { 2 => [152, 147], 152 => [153], 153 => [281, 305] }
+    # with base = [152, 147] becomes [147, 281, 305]
+    def parse_filters(base)
+      with = base.clone
+      with.count.times do
+        with.map! do |node|
+          filters[node] || node
+        end.flatten!
+      end
+      with.uniq.select(&:present?)
     end
 
     # corrects facets for taxons
     def correct_facets(facets, query, search_options)
-      return facets unless filters.present?
+      return facets unless @parsed_filters.present?
 
       result = facets.clone
 
-      filters.each do |filter_taxon_id, taxon_ids|
+      @parsed_filters.each do |filter_taxon_id, taxon_ids|
         if taxon_ids.any?(&:present?)
           new_search_options = search_options.clone
           new_search_options[:with] = search_options[:with].clone
@@ -136,9 +137,9 @@ private
     end
 
     def correct_facets_by_root_taxon(root_taxon, old_taxon_hash, new_taxon_hash)
-      taxon_names = root_taxon.filter_options.map(&:name)
-      taxon_names.each do |taxon_name|
-        old_taxon_hash[taxon_name] = new_taxon_hash[taxon_name] if new_taxon_hash[taxon_name].present?
+      taxon_ids = root_taxon.descendants.pluck(:id)
+      taxon_ids.each do |taxon_id|
+        old_taxon_hash[taxon_id] = new_taxon_hash[taxon_id] if new_taxon_hash[taxon_id].present?
       end
     end
 
