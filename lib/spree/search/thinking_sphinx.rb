@@ -107,7 +107,7 @@ private
     # { 2 => [152, 147], 152 => [153], 153 => [281, 305] }
     # with base = [152, 147] becomes [147, 281, 305]
     def parse_filters(base)
-      with = base.clone
+      with = Array.wrap(base.clone)
       with.count.times do
         with.map! do |node|
           filters[node] || node
