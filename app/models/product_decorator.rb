@@ -57,7 +57,7 @@ Spree::Product.class_eval do
     indexes taxons_sql.call('name'), :as => :taxon_names
 
     facet taxons_sql.call('id'), :as => :taxon, :type => :multi, :source => :field, :all_ints => true
-    Spree::Taxon.filters.each do |taxon|
+    Spree::Taxon.where("(rgt-lft-1)/2 != 0").each do |taxon|
       has taxons_sql.call('id'), :as => "#{taxon.id}_taxon_ids", :type => :multi
     end
 

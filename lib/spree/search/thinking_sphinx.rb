@@ -19,7 +19,9 @@ module Spree::Search
 
       # filters = {'183' => ['174'], '2' => ['144', '145']}
       @parsed_filters = {}
-      Spree::Taxon.filters.each do |filter|
+      taxon_filters = Spree::Taxon.filters.to_a
+      taxon_filters |= [taxon] if taxon && taxon.has_descendants?
+      taxon_filters.each do |filter|
         if filters && filters[filter.id.to_s].present?
           @parsed_filters[filter.id] = parse_filters(filters[filter.id.to_s])
           with_opts.merge!("#{filter.id}_taxon_ids" => @parsed_filters[filter.id]) if @parsed_filters[filter.id].present?
