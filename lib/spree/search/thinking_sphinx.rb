@@ -52,7 +52,7 @@ module Spree::Search
 
     def prepare(params)
       @properties[:facets_hash] = params[:facets] || {}
-      @properties[:taxon] = params[:taxon].blank? ? nil : Spree::Taxon.find(params[:taxon])
+      @properties[:taxon] = params[:taxon].blank? ? nil : Spree::Taxon.find_by_id(params[:taxon])
       @properties[:keywords] = params[:keywords]
       @properties[:filters] = params[:filters]
 
