@@ -115,7 +115,8 @@ private
           filters[node] || node
         end.flatten!
       end
-      with.uniq.select(&:present?)
+      # Ugly fix for bigints
+      with.uniq.select {|f| f.to_i.between? 1, 2**32}
     end
 
     # corrects facets for taxons
