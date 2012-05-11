@@ -112,7 +112,7 @@ module Spree::Search
 
       @parsed_filters.each do |filter_taxon_id, taxon_ids|
         if taxon_ids.any?(&:present?)
-          new_search_options = search_options.clone
+          new_search_options = search_options.clone.merge(:facets => [:taxon])
           new_search_options[:with] = search_options[:with].clone
           new_search_options[:with].delete("#{filter_taxon_id}_taxon_ids")
           new_facets = Spree::Product.facets(query, new_search_options)
