@@ -33,7 +33,7 @@ module Spree::Search
     def prepare(params)
       super
       @properties[:manage_pagination] = true
-      @properties[:filters] = params[:filters]
+      @properties[:filters] = prepare_nested_filters(params[:filters])
 
       Spree::Product.indexed_properties.each do |prop|
         indexed_name = [prop[:name], '_property'].join.to_sym
@@ -63,7 +63,9 @@ module Spree::Search
       taxon_ids = taxon ? taxon.id : Spree::Taxon.roots.pluck(:id)
       with_opts.merge!(:taxon => taxon_ids)
 
-      with_opts.merge!(prepare_nested_filters)
+      filters.each do |filter_id, group|
+        with_opts["#{filter_id}_taxon_ids"] = group
+      end
 
       if price_from.present? && price_to.present?
         with_opts.merge!(:price => price_from.to_f..price_to.to_f)
@@ -73,31 +75,29 @@ module Spree::Search
     end
 
     # filters = {'183' => ['174'], '2' => ['144', '145']}
-    def prepare_nested_filters
-      return {} if filters.blank?
-      @parsed_filters = {}
+    def prepare_nested_filters(dirty_filters)
+      return {} if dirty_filters.blank?
 
       taxon_filters = Spree::Taxon.filters.to_a
       taxon_filters |= [taxon] if taxon && taxon.has_descendants?
 
-      taxon_filters.inject({}) do |with_opts, filter|
-        if filters[filter.id.to_s].present?
-          parsed_filter_group = parse_filters(filters[filter.id.to_s])
-          @parsed_filters[filter.id] = parsed_filter_group
-          with_opts["#{filter.id}_taxon_ids"] = parsed_filter_group if parsed_filter_group.present?
+      taxon_filters.inject({}) do |new_filters, filter|
+        if dirty_filters[filter.id.to_s].present?
+          parsed_filter_group = parse_filters(dirty_filters[filter.id.to_s], dirty_filters)
+          new_filters[filter.id] = parsed_filter_group if parsed_filter_group.present?
         end
-        with_opts
+        new_filters
       end
     end
 
     # 'Flattens' filters hash of nested taxons
     # { 2 => [152, 147], 152 => [153], 153 => [281, 305] }
     # with base = [152, 147] becomes [147, 281, 305]
-    def parse_filters(base)
+    def parse_filters(base, dirty_filters)
       with = Array.wrap(base.clone)
       with.count.times do
         with.map! do |node|
-          filters[node] || node
+          dirty_filters[node] || node
         end.flatten!
       end
       # Ugly fix for bigints
@@ -106,11 +106,11 @@ module Spree::Search
 
     # corrects facets for taxons
     def correct_facets(facets, query, search_options)
-      return facets unless @parsed_filters.present?
+      return facets unless filters.present?
 
       result = facets.clone
 
-      @parsed_filters.each do |filter_taxon_id, taxon_ids|
+      filters.each do |filter_taxon_id, taxon_ids|
         if taxon_ids.any?(&:present?)
           new_search_options = search_options.clone.merge(:facets => [:taxon])
           new_search_options[:with] = search_options[:with].clone
