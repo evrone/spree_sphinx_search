@@ -41,7 +41,7 @@ module Spree::Search
       @properties[:products] = products
 
       corrected_facets = correct_facets(facets, query, search_options)
-      @properties[:facets] = parse_facets_hash(corrected_facets)
+      @properties[:facets] = corrected_facets
 
       if products.suggestion? && products.suggestion.present?
         @properties[:suggest] = products.suggestion
@@ -146,50 +146,5 @@ private
       end
     end
 
-    # method should return new scope based on base_scope
-    def parse_facets_hash(facets_hash = {})
-      facets = []
-      facets_hash.each do |name, options|
-        next if options.size <= 1
-        facet = Facet.new(name)
-        options.each do |value, count|
-          next if value.blank?
-          facet.options << FacetOption.new(value, count)
-        end
-        facets << facet
-      end
-      facets
-    end
-  end
-
-  class Facet
-    attr_accessor :options
-    attr_accessor :name
-    def initialize(name, options = [])
-      self.name = name
-      self.options = options
-    end
-
-    def self.translate?(property)
-      return true if property.is_a?(ThinkingSphinx::Field)
-
-      case property.type
-      when :string
-        true
-      when :integer, :boolean, :datetime, :float
-        false
-      when :multi
-        false # !property.all_ints?
-      end
-    end
-  end
-
-  class FacetOption
-    attr_accessor :name
-    attr_accessor :count
-    def initialize(name, count)
-      self.name = name
-      self.count = count
-    end
   end
 end
