@@ -12,32 +12,13 @@ module Spree::Search
 
     # method should return AR::Relations with conditions {:conditions=> "..."} for Product model
     def get_products_conditions_for(base_scope,query)
-      search_options = {:page => page, :per_page => per_page}
-      if order_by_price
-        search_options.merge!(:order => :price,
-                              :sort_mode => (order_by_price == 'descend' ? :desc : :asc))
-      end
-      with_opts = {:is_active => 1}
-
-      taxon_ids = taxon ? taxon.id : Spree::Taxon.roots.pluck(:id)
-      with_opts.merge!(:taxon => taxon_ids)
-
-      with_opts.merge!(prepare_nested_filters)
-
-      if price_from.present? && price_to.present?
-        with_opts.merge!(:price => price_from.to_f..price_to.to_f)
-      end
-
-      search_options.merge!(:with => with_opts)
-      search_options.deep_merge!(custom_options)
+      search_options = thinking_sphinx_options
 
       products_ids = Spree::Product.search_for_ids(query, search_options)
       facets = products_ids.facets
 
       @properties[:products] = products_ids
-
-      corrected_facets = correct_facets(facets, query, search_options)
-      @properties[:facets] = corrected_facets
+      @properties[:facets] = correct_facets(facets, query, search_options)
 
       Spree::Product.where(:id => products_ids)
     end
@@ -77,6 +58,28 @@ module Spree::Search
       base_scope = base_scope.on_hand unless Spree::Config[:show_zero_stock_products]
       base_scope = base_scope.group_by_products_id if @product_group.product_scopes.size > 1
       base_scope
+    end
+
+    def thinking_sphinx_options
+      search_options = {:page => page, :per_page => per_page}
+      with_opts = {:is_active => 1}
+
+      if order_by_price
+        search_options.merge!(:order => :price,
+                              :sort_mode => (order_by_price == 'descend' ? :desc : :asc))
+      end
+
+      taxon_ids = taxon ? taxon.id : Spree::Taxon.roots.pluck(:id)
+      with_opts.merge!(:taxon => taxon_ids)
+
+      with_opts.merge!(prepare_nested_filters)
+
+      if price_from.present? && price_to.present?
+        with_opts.merge!(:price => price_from.to_f..price_to.to_f)
+      end
+
+      search_options.merge!(:with => with_opts)
+      search_options.deep_merge!(custom_options)
     end
 
     # filters = {'183' => ['174'], '2' => ['144', '145']}
