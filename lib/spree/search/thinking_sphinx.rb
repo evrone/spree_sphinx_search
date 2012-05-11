@@ -19,20 +19,10 @@ module Spree::Search
       end
       with_opts = {:is_active => 1}
 
-      root_ids = Spree::Taxon.roots.pluck(:id)
       taxon_ids = taxon ? taxon.id : Spree::Taxon.roots.pluck(:id)
       with_opts.merge!(:taxon => taxon_ids)
 
-      # filters = {'183' => ['174'], '2' => ['144', '145']}
-      @parsed_filters = {}
-      taxon_filters = Spree::Taxon.filters.to_a
-      taxon_filters |= [taxon] if taxon && taxon.has_descendants?
-      taxon_filters.each do |filter|
-        if filters && filters[filter.id.to_s].present?
-          @parsed_filters[filter.id] = parse_filters(filters[filter.id.to_s])
-          with_opts.merge!("#{filter.id}_taxon_ids" => @parsed_filters[filter.id]) if @parsed_filters[filter.id].present?
-        end
-      end
+      with_opts.merge!(prepare_nested_filters)
 
       if price_from.present? && price_to.present?
         with_opts.merge!(:price => price_from.to_f..price_to.to_f)
@@ -87,6 +77,24 @@ module Spree::Search
       base_scope = base_scope.on_hand unless Spree::Config[:show_zero_stock_products]
       base_scope = base_scope.group_by_products_id if @product_group.product_scopes.size > 1
       base_scope
+    end
+
+    # filters = {'183' => ['174'], '2' => ['144', '145']}
+    def prepare_nested_filters
+      return {} if filters.blank?
+      @parsed_filters = {}
+
+      taxon_filters = Spree::Taxon.filters.to_a
+      taxon_filters |= [taxon] if taxon && taxon.has_descendants?
+
+      taxon_filters.inject({}) do |with_opts, filter|
+        if filters[filter.id.to_s].present?
+          parsed_filter_group = parse_filters(filters[filter.id.to_s])
+          @parsed_filters[filter.id] = parsed_filter_group
+          with_opts["#{filter.id}_taxon_ids"] = parsed_filter_group if parsed_filter_group.present?
+        end
+        with_opts
+      end
     end
 
     # 'Flattens' filters hash of nested taxons
