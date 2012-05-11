@@ -23,6 +23,13 @@ module Spree::Search
       Spree::Product.where(:id => products_ids)
     end
 
+    # Use sphinx even if keywords is blank
+    def get_base_scope
+      base_scope = super
+      base_scope = get_products_conditions_for(base_scope, keywords) if keywords.blank?
+      base_scope
+    end
+
     def prepare(params)
       super
       @properties[:manage_pagination] = true
@@ -44,25 +51,13 @@ module Spree::Search
 
     private
 
-    # Copied because we want to use sphinx even if keywords is blank
-    # This method is equal to one from spree without unless keywords.blank? in get_products_conditions_for
-    def get_base_scope
-      base_scope = @cached_product_group ? @cached_product_group.products.active : Spree::Product.active
-      base_scope = base_scope.in_taxon(taxon) unless taxon.blank?
-      base_scope = get_products_conditions_for(base_scope, keywords)
-
-      base_scope = base_scope.on_hand unless Spree::Config[:show_zero_stock_products]
-      base_scope = base_scope.group_by_products_id if @product_group.product_scopes.size > 1
-      base_scope
-    end
-
     def thinking_sphinx_options
       search_options = {:page => page, :per_page => per_page}
       with_opts = {:is_active => 1}
 
       if order_by_price
-        search_options.merge!(:order => :price,
-                              :sort_mode => (order_by_price == 'descend' ? :desc : :asc))
+        sort_mode = order_by_price == 'descend' ? :desc : :asc
+        search_options.merge!(:order => :price, :sort_mode => sort_mode)
       end
 
       taxon_ids = taxon ? taxon.id : Spree::Taxon.roots.pluck(:id)
