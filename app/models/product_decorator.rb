@@ -12,10 +12,6 @@ Spree::Product.class_eval do
   end
   extend_index { |_| }
 
-  def self.sphinx_search_options &rules
-    Spree::Search::ThinkingSphinx.send :define_method, :custom_options, rules
-  end
-
   define_index do |base|
     is_active_sql = "(spree_products.deleted_at IS NULL AND spree_products.available_on <= NOW() #{'AND (spree_products.count_on_hand > 0)' unless Spree::Config[:allow_backorders]} )"
 
@@ -81,5 +77,4 @@ Spree::Product.class_eval do
 
     source.model.extended_index.call(base)
   end
-
 end

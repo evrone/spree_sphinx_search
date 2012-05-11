@@ -42,10 +42,6 @@ module Spree::Search
       end
     end
 
-    def custom_options
-      {}
-    end
-
     private
 
     # Copied because we want to use sphinx even if keywords is blank
@@ -79,7 +75,6 @@ module Spree::Search
       end
 
       search_options.merge!(:with => with_opts)
-      search_options.deep_merge!(custom_options)
     end
 
     # filters = {'183' => ['174'], '2' => ['144', '145']}
