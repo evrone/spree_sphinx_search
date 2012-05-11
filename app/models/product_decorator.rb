@@ -4,16 +4,21 @@ Spree::Product.class_eval do
   # [{:name => :age_from, :type => :integer}]
   self.indexed_properties = []
   # Method should return array of hashes like [{:field => :created_at, :options => {:as => :recency}}]
-  def self.indexed_attributes
-    []
+
+  def self.extend_index &options
+    self.class.send :define_method, :extended_index do
+      lambda { |base| options.call(base) }
+    end
   end
+  extend_index { |_| }
 
   def self.sphinx_search_options &rules
     Spree::Search::ThinkingSphinx.send :define_method, :custom_options, rules
   end
 
-  define_index do
+  define_index do |base|
     is_active_sql = "(spree_products.deleted_at IS NULL AND spree_products.available_on <= NOW() #{'AND (spree_products.count_on_hand > 0)' unless Spree::Config[:allow_backorders]} )"
+
     option_sql = lambda do |option_name|
       sql = <<-eos
         SELECT DISTINCT p.id, ov.id
@@ -67,14 +72,14 @@ Spree::Product.class_eval do
     group_by :available_on
     has is_active_sql, :as => :is_active, :type => :boolean
 
-    source.model.indexed_attributes.each do |attr|
-      has attr[:field], attr[:options]
-    end
     source.model.indexed_properties.each do |prop|
       has property_sql.call(prop[:name].to_s), :as => :"#{prop[:name]}_property", :type => prop[:type]
     end
     source.model.indexed_options.each do |opt|
       has option_sql.call(opt.to_s), :as => :"#{opt}_option", :source => :ranged_query, :type => :multi, :facet => true
     end
+
+    source.model.extended_index.call(base)
   end
+
 end
