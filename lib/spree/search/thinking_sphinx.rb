@@ -32,23 +32,24 @@ module Spree::Search
       search_options.merge!(:with => with_opts)
       search_options.deep_merge!(custom_options)
 
-      facets = Spree::Product.facets(query, search_options)
-      products = facets.for
+      products_ids = Spree::Product.search_for_ids(query, search_options)
+      facets = products_ids.facets
 
-      @properties[:products] = products
+      @properties[:products] = products_ids
 
       corrected_facets = correct_facets(facets, query, search_options)
       @properties[:facets] = corrected_facets
 
-      if products.suggestion? && products.suggestion.present?
-        @properties[:suggest] = products.suggestion
+      if products_ids.suggestion? && products_ids.suggestion.present?
+        @properties[:suggest] = products_ids.suggestion
       end
 
-      Spree::Product.where(:id => products.map(&:id))
+      Spree::Product.where(:id => products_ids)
     end
 
     def prepare(params)
       super
+      @properties[:manage_pagination] = true
       @properties[:filters] = params[:filters]
 
       Spree::Product.indexed_properties.each do |prop|
