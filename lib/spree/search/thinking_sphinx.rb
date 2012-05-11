@@ -57,21 +57,22 @@ module Spree::Search
 
       if order_by_price
         sort_mode = order_by_price == 'descend' ? :desc : :asc
-        search_options.merge!(:order => :price, :sort_mode => sort_mode)
+        search_options[:order] = :price
+        search_options[:sort_mode ] = sort_mode
       end
 
-      taxon_ids = taxon ? taxon.id : Spree::Taxon.roots.pluck(:id)
-      with_opts.merge!(:taxon => taxon_ids)
+      with_opts[:taxon] = taxon ? taxon.id : Spree::Taxon.roots.pluck(:id)
 
       filters.each do |filter_id, group|
         with_opts["#{filter_id}_taxon_ids"] = group
       end
 
       if price_from.present? && price_to.present?
-        with_opts.merge!(:price => price_from.to_f..price_to.to_f)
+        with_opts[:price] = (price_from.to_f..price_to.to_f)
       end
 
-      search_options.merge!(:with => with_opts)
+      search_options[:with] = with_opts
+      search_options
     end
 
     # filters = {'183' => ['174'], '2' => ['144', '145']}
