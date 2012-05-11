@@ -8,9 +8,6 @@ module Spree::Search
         search_options.merge!(:order => :price,
                               :sort_mode => (order_by_price == 'descend' ? :desc : :asc))
       end
-      if facets_hash
-        search_options.merge!(:conditions => facets_hash)
-      end
       with_opts = {:is_active => 1}
 
       root_ids = Spree::Taxon.roots.pluck(:id)
@@ -51,40 +48,21 @@ module Spree::Search
     end
 
     def prepare(params)
-      @properties[:facets_hash] = params[:facets] || {}
-      @properties[:taxon] = params[:taxon].blank? ? nil : Spree::Taxon.find_by_id(params[:taxon])
-      @properties[:keywords] = params[:keywords]
+      super
       @properties[:filters] = params[:filters]
-
-      @properties[:price_from] = params[:price_from].presence.try(:to_f)
-      @properties[:price_to] = params[:price_to].presence.try(:to_f)
 
       Spree::Product.indexed_properties.each do |prop|
         indexed_name = [prop[:name], '_property'].join.to_sym
         @properties[indexed_name] = params[indexed_name]
       end
 
+      @properties[:price_from] = params[:price_from].presence.try(:to_f)
+      @properties[:price_to] = params[:price_to].presence.try(:to_f)
+
       if params[:price_delta].present?
         @properties[:price_from] *= (1 - params[:price_delta].to_f) if @properties[:price_from].present?
         @properties[:price_to] *= (1 + params[:price_delta].to_f) if @properties[:price_to].present?
       end
-
-      per_page = params[:per_page].to_i
-      @properties[:per_page] = per_page > 0 ? per_page : Spree::Config[:products_per_page]
-      @properties[:page] = (params[:page].to_i <= 0) ? 1 : params[:page].to_i
-      @properties[:manage_pagination] = true
-      @properties[:order_by_price] = params[:order_by_price]
-      if !params[:order_by_price].blank?
-        @product_group = Spree::ProductGroup.new.from_route([params[:order_by_price]+"_by_master_price"])
-      elsif params[:product_group_name]
-        @cached_product_group = Spree::ProductGroup.find_by_permalink(params[:product_group_name])
-        @product_group = Spree::ProductGroup.new
-      elsif params[:product_group_query]
-        @product_group = Spree::ProductGroup.new.from_route(params[:product_group_query].split("/"))
-      else
-        @product_group = Spree::ProductGroup.new
-      end
-      @product_group = @product_group.from_search(params[:search]) if params[:search]
     end
 
     def custom_options
