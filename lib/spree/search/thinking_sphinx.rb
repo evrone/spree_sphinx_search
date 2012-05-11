@@ -1,6 +1,15 @@
 module Spree::Search
   class ThinkingSphinx < Spree::Core::Search::Base
+
+    def suggest
+      return @suggest unless @suggest.nil?
+      if products && products.suggestion? && products.suggestion.present?
+        @suggest = products.suggestion
+      end
+    end
+
     protected
+
     # method should return AR::Relations with conditions {:conditions=> "..."} for Product model
     def get_products_conditions_for(base_scope,query)
       search_options = {:page => page, :per_page => per_page}
@@ -40,10 +49,6 @@ module Spree::Search
       corrected_facets = correct_facets(facets, query, search_options)
       @properties[:facets] = corrected_facets
 
-      if products_ids.suggestion? && products_ids.suggestion.present?
-        @properties[:suggest] = products_ids.suggestion
-      end
-
       Spree::Product.where(:id => products_ids)
     end
 
@@ -70,7 +75,7 @@ module Spree::Search
       {}
     end
 
-private
+    private
 
     # Copied because we want to use sphinx even if keywords is blank
     # This method is equal to one from spree without unless keywords.blank? in get_products_conditions_for
