@@ -25,8 +25,9 @@ module Spree::Search
 
     # Use sphinx even if keywords is blank
     def get_base_scope
-      base_scope = super
-      base_scope = get_products_conditions_for(base_scope, keywords) if keywords.blank?
+      base_scope = Spree::Product.active
+      base_scope = get_products_conditions_for(base_scope, keywords)
+      base_scope = base_scope.on_hand unless Spree::Config[:show_zero_stock_products]
       base_scope
     end
 
@@ -55,11 +56,11 @@ module Spree::Search
       search_options = {:page => page, :per_page => per_page}
       with_opts = {:is_active => 1}
 
-      if order_by_price
-        sort_mode = order_by_price == 'descend' ? :desc : :asc
-        search_options[:order] = :price
-        search_options[:sort_mode ] = sort_mode
-      end
+      # if order_by_price
+      #   sort_mode = order_by_price == 'descend' ? :desc : :asc
+      #   search_options[:order] = :price
+      #   search_options[:sort_mode ] = sort_mode
+      # end
 
       with_opts[:taxon] = taxon ? taxon.id : Spree::Taxon.roots.pluck(:id)
 
