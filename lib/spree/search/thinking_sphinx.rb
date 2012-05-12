@@ -1,118 +1,104 @@
 module Spree::Search
   class ThinkingSphinx < Spree::Core::Search::Base
+
+    def suggest
+      return @suggest unless @suggest.nil?
+      if products && products.suggestion? && products.suggestion.present?
+        @suggest = products.suggestion
+      end
+    end
+
     protected
+
     # method should return AR::Relations with conditions {:conditions=> "..."} for Product model
     def get_products_conditions_for(base_scope,query)
-      search_options = {:page => page, :per_page => per_page}
-      if order_by_price
-        search_options.merge!(:order => :price,
-                              :sort_mode => (order_by_price == 'descend' ? :desc : :asc))
-      end
-      if facets_hash
-        search_options.merge!(:conditions => facets_hash)
-      end
-      with_opts = {:is_active => 1}
+      search_options = thinking_sphinx_options
 
-      root_ids = Spree::Taxon.roots.pluck(:id)
-      taxon_ids = taxon ? taxon.id : Spree::Taxon.roots.pluck(:id)
-      with_opts.merge!(:taxon => taxon_ids)
+      products_ids = Spree::Product.search_for_ids(query, search_options)
+      facets = products_ids.facets
 
-      # filters = {'183' => ['174'], '2' => ['144', '145']}
-      @parsed_filters = {}
-      taxon_filters = Spree::Taxon.filters.to_a
-      taxon_filters |= [taxon] if taxon && taxon.has_descendants?
-      taxon_filters.each do |filter|
-        if filters && filters[filter.id.to_s].present?
-          @parsed_filters[filter.id] = parse_filters(filters[filter.id.to_s])
-          with_opts.merge!("#{filter.id}_taxon_ids" => @parsed_filters[filter.id]) if @parsed_filters[filter.id].present?
-        end
-      end
+      @properties[:products] = products_ids
+      @properties[:facets] = correct_facets(facets, query, search_options)
 
-      if price_from.present? && price_to.present?
-        with_opts.merge!(:price => price_from.to_f..price_to.to_f)
-      end
+      Spree::Product.where(:id => products_ids)
+    end
 
-      search_options.merge!(:with => with_opts)
-      search_options.deep_merge!(custom_options)
-
-      facets = Spree::Product.facets(query, search_options)
-      products = facets.for
-
-      @properties[:products] = products
-
-      corrected_facets = correct_facets(facets, query, search_options)
-      @properties[:facets] = parse_facets_hash(corrected_facets)
-
-      if products.suggestion? && products.suggestion.present?
-        @properties[:suggest] = products.suggestion
-      end
-
-      Spree::Product.where(:id => products.map(&:id))
+    # Use sphinx even if keywords is blank
+    def get_base_scope
+      base_scope = super
+      base_scope = get_products_conditions_for(base_scope, keywords) if keywords.blank?
+      base_scope
     end
 
     def prepare(params)
-      @properties[:facets_hash] = params[:facets] || {}
-      @properties[:taxon] = params[:taxon].blank? ? nil : Spree::Taxon.find_by_id(params[:taxon])
-      @properties[:keywords] = params[:keywords]
-      @properties[:filters] = params[:filters]
-
-      @properties[:price_from] = params[:price_from].presence.try(:to_f)
-      @properties[:price_to] = params[:price_to].presence.try(:to_f)
+      super
+      @properties[:manage_pagination] = true
+      @properties[:filters] = prepare_nested_filters(params[:filters])
 
       Spree::Product.indexed_properties.each do |prop|
         indexed_name = [prop[:name], '_property'].join.to_sym
         @properties[indexed_name] = params[indexed_name]
       end
 
+      @properties[:price_from] = params[:price_from].presence.try(:to_f)
+      @properties[:price_to] = params[:price_to].presence.try(:to_f)
+
       if params[:price_delta].present?
         @properties[:price_from] *= (1 - params[:price_delta].to_f) if @properties[:price_from].present?
         @properties[:price_to] *= (1 + params[:price_delta].to_f) if @properties[:price_to].present?
       end
+    end
 
-      per_page = params[:per_page].to_i
-      @properties[:per_page] = per_page > 0 ? per_page : Spree::Config[:products_per_page]
-      @properties[:page] = (params[:page].to_i <= 0) ? 1 : params[:page].to_i
-      @properties[:manage_pagination] = true
-      @properties[:order_by_price] = params[:order_by_price]
-      if !params[:order_by_price].blank?
-        @product_group = Spree::ProductGroup.new.from_route([params[:order_by_price]+"_by_master_price"])
-      elsif params[:product_group_name]
-        @cached_product_group = Spree::ProductGroup.find_by_permalink(params[:product_group_name])
-        @product_group = Spree::ProductGroup.new
-      elsif params[:product_group_query]
-        @product_group = Spree::ProductGroup.new.from_route(params[:product_group_query].split("/"))
-      else
-        @product_group = Spree::ProductGroup.new
+    private
+
+    def thinking_sphinx_options
+      search_options = {:page => page, :per_page => per_page}
+      with_opts = {:is_active => 1}
+
+      if order_by_price
+        sort_mode = order_by_price == 'descend' ? :desc : :asc
+        search_options[:order] = :price
+        search_options[:sort_mode ] = sort_mode
       end
-      @product_group = @product_group.from_search(params[:search]) if params[:search]
+
+      with_opts[:taxon] = taxon ? taxon.id : Spree::Taxon.roots.pluck(:id)
+
+      filters.each do |filter_id, group|
+        with_opts["#{filter_id}_taxon_ids"] = group
+      end
+
+      if price_from.present? && price_to.present?
+        with_opts[:price] = (price_from.to_f..price_to.to_f)
+      end
+
+      search_options[:with] = with_opts
+      search_options
     end
 
-    def custom_options
-      {}
-    end
+    # filters = {'183' => ['174'], '2' => ['144', '145']}
+    def prepare_nested_filters(dirty_filters)
+      return {} if dirty_filters.blank?
 
-private
+      taxon_filters = Spree::Taxon.filters.to_a
+      taxon_filters |= [taxon] if taxon && taxon.has_descendants?
 
-    # Copied because we want to use sphinx even if keywords is blank
-    # This method is equal to one from spree without unless keywords.blank? in get_products_conditions_for
-    def get_base_scope
-      base_scope = @cached_product_group ? @cached_product_group.products.active : Spree::Product.active
-      base_scope = base_scope.in_taxon(taxon) unless taxon.blank?
-      base_scope = get_products_conditions_for(base_scope, keywords)
-
-      base_scope = base_scope.on_hand unless Spree::Config[:show_zero_stock_products]
-      base_scope = base_scope.group_by_products_id if @product_group.product_scopes.size > 1
-      base_scope
+      taxon_filters.inject({}) do |new_filters, filter|
+        if dirty_filters[filter.id.to_s].present?
+          parsed_filter_group = parse_filters(dirty_filters[filter.id.to_s], dirty_filters)
+          new_filters[filter.id] = parsed_filter_group if parsed_filter_group.present?
+        end
+        new_filters
+      end
     end
 
     # 'Flattens' filters hash of nested taxons
     # { 2 => [152, 147], 152 => [153], 153 => [281, 305] }
     # with base = [152, 147] becomes [147, 281, 305]
-    def parse_filters(base)
+    def parse_filters(base, dirty_filters)
       with = Array.wrap(base.clone)
       with.count.times do
         with.map! do |node|
-          filters[node] || node
+          dirty_filters[node] || node
         end.flatten!
       end
       # Ugly fix for bigints
@@ -121,13 +107,13 @@ private
 
     # corrects facets for taxons
     def correct_facets(facets, query, search_options)
-      return facets unless @parsed_filters.present?
+      return facets unless filters.present?
 
       result = facets.clone
 
-      @parsed_filters.each do |filter_taxon_id, taxon_ids|
+      filters.each do |filter_taxon_id, taxon_ids|
         if taxon_ids.any?(&:present?)
-          new_search_options = search_options.clone
+          new_search_options = search_options.clone.merge(:facets => [:taxon])
           new_search_options[:with] = search_options[:with].clone
           new_search_options[:with].delete("#{filter_taxon_id}_taxon_ids")
           new_facets = Spree::Product.facets(query, new_search_options)
@@ -146,50 +132,5 @@ private
       end
     end
 
-    # method should return new scope based on base_scope
-    def parse_facets_hash(facets_hash = {})
-      facets = []
-      facets_hash.each do |name, options|
-        next if options.size <= 1
-        facet = Facet.new(name)
-        options.each do |value, count|
-          next if value.blank?
-          facet.options << FacetOption.new(value, count)
-        end
-        facets << facet
-      end
-      facets
-    end
-  end
-
-  class Facet
-    attr_accessor :options
-    attr_accessor :name
-    def initialize(name, options = [])
-      self.name = name
-      self.options = options
-    end
-
-    def self.translate?(property)
-      return true if property.is_a?(ThinkingSphinx::Field)
-
-      case property.type
-      when :string
-        true
-      when :integer, :boolean, :datetime, :float
-        false
-      when :multi
-        false # !property.all_ints?
-      end
-    end
-  end
-
-  class FacetOption
-    attr_accessor :name
-    attr_accessor :count
-    def initialize(name, count)
-      self.name = name
-      self.count = count
-    end
   end
 end
