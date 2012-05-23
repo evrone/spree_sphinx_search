@@ -36,7 +36,7 @@ module Spree::Search
       @properties[:manage_pagination] = true
       @properties[:filters] = prepare_nested_filters(params[:filters])
 
-      Spree::Product.indexed_properties.each do |prop|
+      Spree::ThinkingSphinx::IndexHelper.indexed_properties.each do |prop|
         indexed_name = [prop[:name], '_property'].join.to_sym
         @properties[indexed_name] = params[indexed_name]
       end
