@@ -21,7 +21,7 @@ Spree::Product.class_eval do
     has index_helper.sql.taxons('id'), :as => :taxon, :type => :multi, :source => :field, :all_ints => true, :facet => true
 
     index_helper.indexed_taxons.each do |taxon|
-      has index_helper.sql.taxons('id'), :as => "#{taxon.id}_taxon_ids", :type => :multi
+      has index_helper.sql.taxons('id', taxon), :as => "#{taxon.id}_taxon_ids", :type => :multi
     end
 
     index_helper.indexed_properties.each do |prop|

@@ -25,7 +25,7 @@ module Spree::ThinkingSphinx::IndexHelper
     end
 
     # Query for whole product taxons branches from real product taxon to root
-    def taxons_sql attribute
+    def taxons_sql attribute, taxon=nil
       <<-sql
         (SELECT GROUP_CONCAT(ancestors.#{attribute})
           FROM spree_taxons AS taxons
