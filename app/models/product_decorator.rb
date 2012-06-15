@@ -2,10 +2,10 @@ Spree::Product.class_eval do
 
   def self.extend_index &options
     self.class.send :define_method, :extended_index do
-      lambda { |base| options.call(base) }
+      lambda { |base| base.instance_eval &options }
     end
   end
-  extend_index { |_| }
+  extend_index { }
 
   define_index do |base|
     index_helper = Spree::ThinkingSphinx::IndexHelper
