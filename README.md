@@ -1,28 +1,35 @@
 Sphinx Search
 =============
 
+This gem extends beautiful [Spree](http://spreecommerce.com/) e-commerce platform with a power of the [Sphinx](http://sphinxsearch.com/) search engine via [Thinking Sphinx](http://pat.github.com/ts/en/).
+
 ### Installation
 
-1. Install Sphinx
-1. Install Aspell and at least one Aspell dictionary
-      Mac:
-        sudo port install aspell aspell-dict-en
+Install the latest available version of Sphinx. If you're working on Mac, it can be done with [homebrew](http://mxcl.github.com/homebrew/):
 
-      Ubuntu:
-        sudo apt-get install aspell libaspell-dev aspell-en
+    brew install sphinx
 
-1. Add to Gemfile: `gem 'spree-sphinx-search', :path => git://github.com/romul/spree-sphinx-search.git`
-1. Run `rails g spree_sphinx_search:install`
+Install [Aspell](http://aspell.net/) and at least one Aspell dictionary, which suits to a language you are using in your project.      
 
-**NOTE:** This extension works only with Spree 1.0 and higher.
+    Mac users:
+      brew update
+      brew install aspell --lang=en,ru
+
+    Ubuntu:
+      sudo apt-get install aspell libaspell-dev aspell-en
+
+Include this gem to your Gemfile:
+
+    gem 'spree_sphinx_search', github: 'evrone/spree-sphinx-search'
+
+Copy config/sphinx.yml to RAILS_ROOT/config/sphinx.yml
 
 ### Usage
 
 To perform the indexing:
 
-    rake ts:config
     rake ts:index
 
-To start Sphinx for development:
+To run Sphinx:
 
     rake ts:start
