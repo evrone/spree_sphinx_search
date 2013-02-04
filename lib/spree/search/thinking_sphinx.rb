@@ -48,8 +48,12 @@ module Spree::Search
       if products.suggestion? && products.suggestion.present?
         @properties[:suggest] = products.suggestion
       end
-
-      Spree::Product.where(:id => products.map(&:id))
+      
+      if taxon
+        Spree::Product.in_taxon(taxon)
+      else
+        Spree::Product.where(:id => products.map(&:id))
+      end
     end
 
     def prepare(params)
